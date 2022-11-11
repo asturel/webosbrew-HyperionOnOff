@@ -1,0 +1,63 @@
+name: WebOS build
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  build_ipk:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Extract version from appinfo.json
+        run: echo "IPK_VERSION=$(jq -r .version < app/appinfo.json)" >> $GITHUB_ENV
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v1
+        with:
+          node-version: 14.x
+
+      - name: Install package tools
+        run: npm install -g @webosose/ares-cli @webosbrew/pub-utils
+
+      - name: Package IPK
+        run: ares-package app/
+
+      - name: Generate manifest for homebrew channel
+        env:
+          appinfo_path: ./app/appinfo.json
+          ipk_filename: ./amazon_${{ env.IPK_VERSION }}_all.ipk
+          icon_url: https://github.com/asturel/webosbrew-HyperionOnOff/raw/main/app/largeIcon.png
+          repo_url: https://github.com/asturel/webosbrew-HyperionOnOff
+
+        run: webosbrew-gen-manifest -a ${{ env.appinfo_path }} -p ${{ env.ipk_filename }} -i ${{ env.icon_url }} -l ${{ env.repo_url }} -o amazon.manifest.json
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v3
+        with:
+          name: hyperion-onoff-remote_ipk
+          path: |
+            ${{github.workspace}}/*.ipk
+
+      - uses: marvinpinto/action-automatic-releases@latest
+        if: "github.ref == 'refs/heads/main'"
+        with:
+          repo_token: "${{ secrets.GITHUB_TOKEN }}"
+          automatic_release_tag: latest
+          prerelease: true
+          title: "Development Build"
+          files: |
+            ${{github.workspace}}/*.ipk
+            ${{github.workspace}}/amazon.manifest.json
+
+      - uses: marvinpinto/action-automatic-releases@latest
+        if: "startsWith(github.ref, 'refs/tags/v')"
+        with:
+          repo_token: "${{ secrets.GITHUB_TOKEN }}"
+          prerelease: false
+          title: ${{ github.ref_name }}
+          files: |
+            ${{github.workspace}}/*.ipk
+            ${{github.workspace}}/amazon.manifest.json

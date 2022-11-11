@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+	<title>Hyperion pause/resume</title>
+</head>
+
+<script src="webOSTVjs-1.2.4/webOSTV.js" charset="utf-8"></script>
+<!-- <script src="webOSTVjs-1.2.4/webOSTV-dev.js" charset="utf-8"></script> -->
+<body>
+<script type="text/javascript">
+
+fetch("http://127.0.0.1:8090/json-rpc", {
+        headers: {
+            'Accept': 'application/json',
+            'Content-Type': 'application/json'
+        },
+        method: "POST",
+        body: JSON.stringify({
+            "command": "serverinfo",
+            "tan": Date.now()
+        })
+    })
+    .then((response) => response.json())
+    .then(function(res) {
+        console.debug(res);
+        const ledComponent = res.info.components.find(c => c.name === "LEDDEVICE");
+        const lednewState = ledComponent.enabled ? false : true;
+        const promises = (res && res.info.instance || []).map(instance => new Promise((resolve, reject) => {
+            console.debug('instance', instance);
+            fetch("http://127.0.0.1:8090/json-rpc", {
+                    headers: {
+                        'Accept': 'application/json',
+                        'Content-Type': 'application/json'
+                    },
+                    method: "POST",
+                    body: JSON.stringify({
+                        "command": "instance",
+                        "subcommand": "switchTo",
+                        "instance": instance.instance,
+                        "tan": Date.now()
+                    })
+                })
+                .then(function(res) {
+                    console.debug(`switching to instance #${instance.instance} success.`);
+                    fetch("http://127.0.0.1:8090/json-rpc", {
+                            headers: {
+                                'Accept': 'application/json',
+                                'Content-Type': 'application/json'
+                            },
+                            method: "POST",
+                            body: JSON.stringify({
+                                "command": "componentstate",
+                                "componentstate": {
+                                    "component": "LEDDEVICE",
+                                    "state": lednewState
+                                },
+                                "tan": Date.now()
+                            })
+                        })
+                        .then(function(res) {
+                            console.debug(`led device #${instance.instance} ${!lednewState ? "stopped" : "started"} successfully.`);
+                            console.debug(res);
+                            resolve(res);
+
+                        })
+                        .catch(function(res) {
+                            console.error(`failed to ${!lednewState ? "stopped" : "started"} led device #${instance.instance}.`);
+                            console.error(res);
+                            reject(res);
+                        });
+                })
+                .catch(function(res) {
+                    console.error(`failed to ${instance.running ? "stopped" : "started"} led device #${instance.instance}.`);
+                    console.error(res);
+                    reject(res);
+                });
+        }));
+        return Promise.allSettled(promises);
+    })
+    .then(function(res) {
+        console.debug(res);
+        window.close();
+	})
+    .catch(function(res) {
+        console.error(res);
+        window.close();
+    });
+
+</script>
+</body>
+
+</html>

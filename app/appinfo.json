@@ -1,0 +1,17 @@
+{
+  "id": "amazon",
+  "title": "Hyperion OnOff",
+  "appDescription": "Amazon",
+  "version": "0.1.0",
+  "vendor": "open source",
+  "type": "web",
+  "main": "index.html",
+  "icon": "icon.png",
+  "largeIcon": "largeIcon.png",
+  "transparent": true,
+  "noSplashOnLaunch": true,
+  "disableBackHistoryAPI": true,
+  "blockMediaPlay": false,
+  "defaultWindowType": "popup",
+  "visible": false
+}
